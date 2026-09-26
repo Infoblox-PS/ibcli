@@ -45,7 +45,7 @@ dependencies = [
     # cannot parse a NIOS 9.1 response, and 0.2.0 adds the per-object-type
     # operation restrictions that --allow-restricted opts out of. The
     # version is checked at startup rather than by the resolver.
-    "prompt_toolkit (>=3.0.43)",
+    "prompt_toolkit (>=3.0.53)",
 ]
 
 # No `[project.optional-dependencies]`. There was an `sdk` extra pinning
