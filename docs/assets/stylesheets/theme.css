@@ -1,0 +1,320 @@
+/* ==========================================================================
+   ibcli documentation theme - Infoblox brand
+
+   Source: Infoblox Brand Guidelines, Version 20250613v2.
+
+   Infoblox is a Green and Black brand. Green is the defining colour, Black
+   the dominant surface for high-impact material, and the Yellow > Green >
+   Teal gradient is the signature accent, used once per layout.
+
+   Contrast was measured against WCAG 2.1 AA (4.5:1 body, 3:1 large/UI), and
+   it drives the one non-obvious decision here: Infoblox Green (#00BD4D)
+   reaches only 2.50:1 on white, so it is NEVER a text colour in light mode.
+   Evergreen (#00594C, 8.29:1) carries links there and Green stays an accent.
+   On the Black canvas Green reaches 7.15:1 and does carry text - which is
+   the pairing the brand is actually built around.
+   ========================================================================== */
+
+:root {
+  /* Primary */
+  --ib-black:      #101820;
+  --ib-green:      #00BD4D;
+  --ib-evergreen:  #00594C;
+  --ib-white:      #FFFFFF;
+  --ib-off-white:  #F0EFE9;
+
+  /* Secondary - accents only, never dominant */
+  --ib-teal:       #00E2EC;
+  --ib-teal-alt:   #12C2D3;  /* more contrast on white backgrounds */
+  --ib-yellow:     #FEDD00;
+  --ib-steel:      #D9E1E2;
+
+  /* Tertiary - charts and pictograms only, per the guidelines */
+  --ib-blue-gray:  #202D37;
+  --ib-blue-bell:  #7D97F8;
+
+  /* The Primary Gradient: Yellow 0% > Green 35-65% > Teal 100%, always
+     horizontal, left to right, Green dominant. Used exactly once per
+     layout - here, the header's bottom edge and nowhere else. */
+  --ib-gradient: linear-gradient(
+    90deg,
+    var(--ib-yellow) 0%,
+    var(--ib-green) 50%,
+    var(--ib-teal) 100%
+  );
+}
+
+/* --------------------------------------------------------------------------
+   Light scheme - white canvas, black chrome, Evergreen links
+   -------------------------------------------------------------------------- */
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color:         var(--ib-black);
+  --md-primary-fg-color--light:  #1d2a36;
+  --md-primary-fg-color--dark:   #080d12;
+  --md-primary-bg-color:         var(--ib-white);
+  --md-primary-bg-color--light:  rgba(255, 255, 255, .7);
+
+  --md-accent-fg-color:          var(--ib-evergreen);
+  --md-accent-fg-color--transparent: rgba(0, 89, 76, .1);
+  --md-accent-bg-color:          var(--ib-white);
+
+  --md-default-bg-color:         var(--ib-white);
+  --md-default-fg-color:         var(--ib-black);
+  --md-default-fg-color--light:  rgba(16, 24, 32, .68);
+  --md-default-fg-color--lighter: rgba(16, 24, 32, .32);
+  --md-default-fg-color--lightest: rgba(16, 24, 32, .07);
+
+  --md-typeset-a-color:          var(--ib-evergreen);
+  --md-code-bg-color:            var(--ib-off-white);
+  --md-code-fg-color:            var(--ib-black);
+
+  --md-footer-bg-color:          var(--ib-black);
+  --md-footer-bg-color--dark:    #0a0f14;
+}
+
+/* --------------------------------------------------------------------------
+   Dark scheme - Infoblox Black canvas, Green emphasis
+   -------------------------------------------------------------------------- */
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 210;
+
+  --md-primary-fg-color:         var(--ib-black);
+  --md-primary-fg-color--light:  #1d2a36;
+  --md-primary-fg-color--dark:   #080d12;
+  --md-primary-bg-color:         var(--ib-white);
+
+  --md-accent-fg-color:          var(--ib-green);
+  --md-accent-fg-color--transparent: rgba(0, 189, 77, .12);
+
+  --md-default-bg-color:         var(--ib-black);
+  --md-default-bg-color--light:  #182430;
+  --md-default-fg-color:         #e6eaee;
+  --md-default-fg-color--light:  rgba(230, 234, 238, .72);
+  --md-default-fg-color--lighter: rgba(230, 234, 238, .36);
+  --md-default-fg-color--lightest: rgba(230, 234, 238, .1);
+
+  --md-typeset-a-color:          var(--ib-green);
+  --md-code-bg-color:            #182430;
+  --md-code-fg-color:            #e6eaee;
+
+  --md-footer-bg-color:          #080d12;
+  --md-footer-bg-color--dark:    #05080b;
+}
+
+/* --------------------------------------------------------------------------
+   The one gradient.
+
+   The `modern` variant nests .md-tabs INSIDE .md-header and gives the whole
+   block a translucent, frosted background, so the gradient goes on the
+   header's bottom edge - below the tab row, closing the chrome.
+
+   Do NOT set a background on .md-tabs: it is part of that frosted block, and
+   overriding it both breaks the effect and leaves the tab labels at the
+   inherited foreground colour, black on black in light mode.
+   -------------------------------------------------------------------------- */
+
+.md-header {
+  border-bottom: 2px solid transparent;
+  border-image: var(--ib-gradient) 1;
+}
+
+/* --------------------------------------------------------------------------
+   Logo.
+
+   Official master artwork, used unmodified: the guidelines forbid recreating,
+   recolouring, cropping, rotating or restyling it, and require the (R) to keep
+   its exact position and proportion - so the only things set here are size and
+   clear space.
+
+   The wordmark is a wide lockup (137x30), not the square glyph the theme
+   expects, so width is left to the aspect ratio rather than forced. Clear
+   space is the width of one "n" in the wordmark, which at this height is
+   roughly .4rem.
+   -------------------------------------------------------------------------- */
+
+.md-header__button.md-logo {
+  padding: 0;
+  margin-right: .4rem;
+}
+
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  width: auto;
+  height: 1.3rem;
+}
+
+/* Only the solid white logo may sit on a colour background, per the
+   guidelines - the dark scheme's canvas is Infoblox Black. */
+[data-md-color-scheme="slate"] .md-header__button.md-logo img {
+  content: url("../images/infoblox-logo-white.svg");
+}
+
+/* --------------------------------------------------------------------------
+   Typography. The brand pairs Alliance No.1/No.2 (licensed) with Lato as the
+   approved free alternative; Lato is what the theme loads. Headings take the
+   tighter tracking the guidelines call for. Headlines are not forced to caps:
+   the guidelines reserve ALL CAPS for short headlines and warn that long ones
+   cause eye fatigue, and documentation headings run long.
+   -------------------------------------------------------------------------- */
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.md-typeset h1 {
+  color: var(--md-default-fg-color);
+}
+
+/* Section rule under h2 to break up long command pages. */
+.md-typeset h2 {
+  padding-bottom: .2rem;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+/* --------------------------------------------------------------------------
+   Code. This is a CLI reference - nearly every page is command blocks, so
+   they get a defined edge rather than sitting flush on the page.
+   -------------------------------------------------------------------------- */
+
+.md-typeset pre > code {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: .2rem;
+}
+
+.md-typeset code {
+  border-radius: .15rem;
+}
+
+.md-typeset a > code {
+  color: var(--md-typeset-a-color);
+}
+
+/* --------------------------------------------------------------------------
+   Tables. The guidelines ask for simple tables in brand colours and
+   typefaces, with no drop shadows, bevels or decorative styling.
+   -------------------------------------------------------------------------- */
+
+.md-typeset table:not([class]) {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  box-shadow: none;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--md-default-fg-color--lightest);
+  color: var(--md-default-fg-color);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Search - Green highlight for hits, legible on both canvases.
+   -------------------------------------------------------------------------- */
+
+.md-search__form {
+  border-radius: .2rem;
+}
+
+.md-search-result__article mark,
+.md-typeset mark {
+  background-color: rgba(0, 189, 77, .28);
+  color: inherit;
+}
+
+/* --------------------------------------------------------------------------
+   Admonitions - recolour the note family to brand Green so callouts stop
+   reading as generic Material blue.
+   -------------------------------------------------------------------------- */
+
+.md-typeset .admonition.note,
+.md-typeset details.note {
+  border-color: var(--ib-green);
+}
+
+.md-typeset .note > .admonition-title,
+.md-typeset .note > summary {
+  background-color: rgba(0, 189, 77, .1);
+}
+
+.md-typeset .note > .admonition-title::before,
+.md-typeset .note > summary::before {
+  background-color: var(--ib-green);
+}
+
+/* Buttons pick up brand Green as the primary call to action. */
+.md-typeset .md-button--primary {
+  background-color: var(--ib-evergreen);
+  border-color: var(--ib-evergreen);
+  color: var(--ib-white);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .md-button--primary {
+  background-color: var(--ib-green);
+  border-color: var(--ib-green);
+  color: var(--ib-black);
+}
+
+/* --------------------------------------------------------------------------
+   Landing page hero.
+
+   Scoped to `.hero` so it only affects docs/index.md; every other page keeps
+   the standard typographic rhythm. The h1 is hidden there because the hero's
+   h2 carries the headline - keeping the h1 in the DOM preserves the document
+   outline for screen readers and the site's own search index.
+   -------------------------------------------------------------------------- */
+
+.md-typeset .hero {
+  margin: 0 0 2.5rem;
+  padding: 2.2rem 0 1.6rem;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .hero h2 {
+  margin: 0 0 .6rem;
+  font-size: 1.9rem;
+  line-height: 1.15;
+  letter-spacing: -.02em;
+  border-bottom: none;   /* the global h2 rule adds one; not wanted here */
+  padding-bottom: 0;
+}
+
+.md-typeset .hero p {
+  max-width: 44rem;
+  font-size: .78rem;
+  line-height: 1.7;
+  color: var(--md-default-fg-color--light);
+}
+
+/* Buttons sit on their own line with room to breathe. */
+.md-typeset .hero .md-button {
+  margin: .4rem .4rem 0 0;
+}
+
+/* The page title duplicates the hero headline; hide it visually only. */
+.md-typeset .hero + * h1,
+.md-typeset h1:has(+ .hero) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Cards: let a card's leading link title carry the accent colour. */
+.md-typeset .grid.cards > ul > li > p:first-child > strong {
+  font-size: .8rem;
+}
+
+/* --------------------------------------------------------------------------
+   Respect reduced-motion for the instant-navigation progress bar.
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .md-progress {
+    transition: none;
+  }
+}

@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# Editor
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# ibcli runtime artifacts
+.ibcli.cf.local
+.ibcli_history
+
+# Certificate + fileop artifacts written into the CWD.
+# `generate csr` writes <cn>.csr and `generate selfsigned` writes <cn>.pem
+# next to wherever you ran them, and the cert tests exercise both - so a
+# plain `pytest` leaves files in the repo root. Nothing here is tracked, and
+# private key material must never be committed by accident.
+*.pem
+*.csr
+*.crt
+*.cer
+*.key
+*.p12
+*.pfx
+# Partial downloads: stream_download writes <dest>.part and renames on
+# success, so one only survives a hard kill.
+*.part
+
+# Zensical build output
+python/site/
+site/
+
+# Local lab/testing scripts (never publish)
+testing/
+provision.ibcli
+cleanup.ibcli
+*.bak
+debug.log
+
+# Local agent/assistant context and caches - never publish
+.serena/
+
+# Internal planning specs / implementation plans - never ship in docs
+docs/superpowers/
+superpowers/
+.coverage
+cache.tgz

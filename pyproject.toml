@@ -1,0 +1,203 @@
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
+
+# -----------------------------------------------------------------------------
+# PEP 621 project metadata - the canonical source. Poetry 2.x reads this
+# directly; pip and other PEP 621-aware tools also work.
+# -----------------------------------------------------------------------------
+
+[project]
+name = "ibcli"
+version = "1.0.1"
+description = "Python port of the Infoblox CLI (ibcli) using the ibx-nios-sdk"
+readme = "README.md"
+# SPDX expression. "-or-later" is the FSF's own recommendation: it lets
+# downstreams move to a future GPL version without every copyright holder
+# having to re-license. Use "GPL-3.0-only" instead to pin to v3 exactly.
+license = "GPL-3.0-or-later"
+requires-python = ">=3.11"
+authors = [
+    { name = "Infoblox Inc." },
+]
+keywords = ["infoblox", "nios", "wapi", "cli", "dns", "dhcp", "ipam"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Networking",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    # 1.0.0 is the first public SDK release and the version the suite runs
+    # against. The startup check in ibcli/_sdk_check.py stays: it turns a
+    # too-old SDK, which a resolver cannot prevent in an environment that
+    # already has one, into one actionable line instead of an ImportError from
+    # deep in the import graph.
+    "ibx-nios-sdk (>=1.0.0)",
+    "prompt_toolkit (>=3.0.43)",
+]
+
+# No `[project.optional-dependencies]`. There was an `sdk` extra pinning
+# `ibx-nios-sdk @ git+https://...`, but PyPI rejects any distribution whose
+# Requires-Dist contains a direct URL reference - extras included - so an
+# upload carrying it fails validation. `twine check` does not catch this; it
+# only validates the README. The equivalent one-liner is in README.md.
+
+[project.scripts]
+ibcli = "ibcli.cli:main"
+
+[project.urls]
+Homepage      = "https://github.com/Infoblox-PS/ibcli"
+Documentation = "https://infoblox-ps.github.io/ibcli/"
+Repository    = "https://github.com/Infoblox-PS/ibcli"
+Issues        = "https://github.com/Infoblox-PS/ibcli/issues"
+Changelog     = "https://github.com/Infoblox-PS/ibcli/blob/main/CHANGELOG.md"
+
+# -----------------------------------------------------------------------------
+# PEP 735 dependency groups - readable by both Poetry 2.x (`poetry install
+# --with dev,lint`) and uv (`uv sync --group dev --group lint`).
+# -----------------------------------------------------------------------------
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "httpx>=0.27",
+    "ruff>=0.4",
+]
+lint = [
+    "pymarkdownlnt>=0.9",
+]
+# Zensical builds the documentation site. It used to sit in `[project]`
+# dependencies so the docs CI job could reach it with `--only main`, which
+# meant every `pip install ibcli` dragged a static-site generator - pinned to
+# a 0.0.x range - into the user's environment. The jobs install `--only docs`
+# instead. Keep the upper bound: 0.0.x releases have broken config handling.
+docs = [
+    "zensical>=0.0.33,<0.0.34",
+]
+
+# -----------------------------------------------------------------------------
+# Poetry-specific configuration
+# -----------------------------------------------------------------------------
+
+[tool.poetry]
+packages = [{ include = "ibcli", from = "src" }]
+# sdist only, both of them. A `format = "wheel"` entry here does not land
+# inside the `ibcli` package - it unpacks at the root of site-packages, so an
+# install would create a top-level `docs/` directory shared with every other
+# distribution on the system.
+include = [
+    { path = "docs", format = "sdist" },
+    { path = "CHANGELOG.md", format = "sdist" },
+]
+
+# -----------------------------------------------------------------------------
+# Pytest
+# -----------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths     = ["tests"]
+pythonpath    = ["src"]
+asyncio_mode  = "auto"
+markers = [
+    "real_grid: tests that execute against a live NIOS grid (requires IBCLI_TEST_GRID, IBCLI_TEST_USER, IBCLI_TEST_PASS env vars; skipped otherwise)",
+]
+
+# -----------------------------------------------------------------------------
+# Coverage
+# -----------------------------------------------------------------------------
+
+[tool.coverage.run]
+source  = ["ibcli"]
+branch  = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+
+# -----------------------------------------------------------------------------
+# Ruff - linter and formatter
+# -----------------------------------------------------------------------------
+
+[tool.ruff]
+line-length    = 100
+target-version = "py311"
+src            = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "W",    # pycodestyle warnings
+]
+ignore = [
+    "E501",  # line too long - caught elsewhere, and some strings are long on purpose
+]
+
+# -----------------------------------------------------------------------------
+# PyMarkdown - markdown linter
+# -----------------------------------------------------------------------------
+
+[tool.pymarkdown]
+# YAML front matter is how pages opt out of the nav/toc (docs/index.md uses
+# `hide:`). Without this extension pymarkdown treats the opening `---` as a
+# horizontal rule and the keys as a list, which fires MD041/MD007/MD032 on a
+# perfectly valid page.
+extensions.front-matter.enabled         = true
+
+# Strict defaults - rules we want to honour everywhere.
+plugins.first-line-h1.enabled           = true    # every file must start with #
+plugins.single-trailing-newline.enabled = true
+plugins.no-multiple-blanks.enabled      = true
+plugins.no-hard-tabs.enabled            = true
+plugins.no-reversed-links.enabled       = true
+plugins.heading-increment.enabled       = true    # no skipping h1 → h3
+plugins.hr-style.enabled                = true
+plugins.list-marker-space.enabled       = true
+
+# Rules silenced deliberately, with reason.
+plugins.line-length.enabled              = true    # MD013 - enforce a soft line cap
+# 212 is not a style preference: it is the smallest cap that admits the
+# longest reference-table row in docs/commands/grid.md. Markdown table rows
+# cannot be wrapped, and pymarkdown has no table exemption, so any lower
+# value makes the rule unsatisfiable without truncating documented option
+# descriptions. Prose is wrapped at ~118; this cap is the backstop that
+# catches runaway lines.
+plugins.line-length.line_length          = 212
+plugins.line-length.code_block_line_length = 140    # code/table blocks get a little more slack
+plugins.line-length.heading_line_length  = 120
+plugins.no-inline-html.enabled          = false   # MD033 - we use <details>, <br>, etc.
+plugins.no-trailing-punctuation.enabled = false   # MD026 - "Why?" / "How?" headings are fine
+plugins.no-duplicate-heading.enabled    = false   # MD024 - cookbook repeats section names
+plugins.fenced-code-language.enabled    = false   # MD040 - some blocks are prose not code
+plugins.no-emphasis-as-heading.enabled  = false   # MD036 - sometimes **bold** is the right call
+
+# MD046 - code block style. pymarkdown has no notion of pymdownx admonitions,
+# so it reads the 4-space-indented body of every `!!! note` block as an
+# indented code block and demands it be fenced. Every report traces back to
+# the 44 admonition blocks in docs/; there is no real indented code here.
+# This is not merely noisy: `pymarkdown fix` acts on it, un-indenting the
+# admonition body and wrapping it in stray fences, which destroys the block.
+plugins.code-block-style.enabled        = false
+
+# MD038 - spaces inside code spans. The CLI prints two leading spaces before
+# every message, so the docs quote them literally as ` Error: ...` and
+# ` Skipped: ...`. The space is the content, not a typo; stripping it would
+# misrepresent what the tool actually outputs.
+plugins.no-space-in-code.enabled        = false

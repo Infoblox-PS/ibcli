@@ -1,0 +1,527 @@
+# lab-provision.ibcli
+# Smoke-test build-out for a fresh NIOS grid.
+# Run: ibcli -s <grid> -u <user> -p <password> -k lab-provision.ibcli
+#
+# Assumes grid name is "Migration". Change the grid name below if yours differs.
+#
+# Required ibcli changes (already applied in src/ibcli/commands/zone.py):
+#   1. cli_add_zone sets zone_format=IPV4/IPV6 automatically for arpa fqdns.
+#   2. cli_add_host accepts repeatable ip=<ip>, ipv6=<addr>, alias=<fqdn>,
+#      plus a bare `fixed` keyword that pairs with mac=<mac> to set
+#      configure_for_dhcp on the host's primary IPv4 (fixed-address in host).
+#
+# Contents:
+#   - 10 pre-provisioned members (6 DNS, 2 DHCP, 2 generic)
+#   - 1 DHCP failover group, 5 DHCP networks + ranges
+#   - 1 DNS nsgroup, 20 forward zones, 10 reverse zones
+#   - 40 host records (multi-IPv4, IPv6, aliases, host-embedded fixed)
+
+# ---------------------------------------------------------------------------
+# 10 pre-provisioned members (6 DNS, 2 DHCP, 2 generic)
+# ---------------------------------------------------------------------------
+# Every member gets dual-stack VIPs (IPv4 VIP + IPv6 VIP). DNS and DHCP
+# members additionally get a MGMT interface (v4 + v6) on a separate subnet.
+# misc members are plain dual-stack (no MGMT). Note: NIOS silently drops the
+# IPv6 VIP on pre-provisioned (offline) members until they actually boot.
+configure grid Migration member add ibdns01.example.com  ipaddress=192.0.2.101/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::101/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.101/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::101/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+configure grid Migration member add ibdns02.example.com  ipaddress=192.0.2.102/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::102/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.102/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::102/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+configure grid Migration member add ibdns03.example.com  ipaddress=192.0.2.103/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::103/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.103/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::103/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+configure grid Migration member add ibdns04.example.com  ipaddress=192.0.2.104/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::104/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.104/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::104/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+configure grid Migration member add ibdns05.example.com  ipaddress=192.0.2.105/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::105/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.105/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::105/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+configure grid Migration member add ibdns06.example.com  ipaddress=192.0.2.106/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::106/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.106/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::106/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+configure grid Migration member add ibdhcp01.example.com ipaddress=192.0.2.111/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::111/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.111/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::111/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dhcp license=nios license=enterprise
+configure grid Migration member add ibdhcp02.example.com ipaddress=192.0.2.112/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::112/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.112/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::112/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dhcp license=nios license=enterprise
+configure grid Migration member add ibmisc01.example.com ipaddress=192.0.2.121/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::121/64 ipv6gateway=2001:db8:64:40::1 platform=VNIOS hwtype=IB-V1425 license=nios license=enterprise
+configure grid Migration member add ibmisc02.example.com ipaddress=192.0.2.122/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::122/64 ipv6gateway=2001:db8:64:40::1 platform=VNIOS hwtype=IB-V1425 license=nios license=enterprise
+
+# ---------------------------------------------------------------------------
+# DHCP failover group
+# ---------------------------------------------------------------------------
+configure network failover add fo-group1 primary ibdhcp01.example.com secondary ibdhcp02.example.com
+
+# ---------------------------------------------------------------------------
+# Networks + DHCP ranges (members assigned so failover range create passes)
+# ---------------------------------------------------------------------------
+configure network add 10.10.1.0/24 member 192.0.2.111 member 192.0.2.112
+configure network add 10.10.2.0/24 member 192.0.2.111 member 192.0.2.112
+configure network add 10.10.3.0/24 member 192.0.2.111 member 192.0.2.112
+configure network add 10.10.4.0/24 member 192.0.2.111 member 192.0.2.112
+configure network add 10.10.5.0/24 member 192.0.2.111 member 192.0.2.112
+
+configure network 10.10.1.0/24 range add 10.10.1.100 10.10.1.200 failover=fo-group1
+configure network 10.10.2.0/24 range add 10.10.2.100 10.10.2.200 failover=fo-group1
+configure network 10.10.3.0/24 range add 10.10.3.100 10.10.3.200 failover=fo-group1
+configure network 10.10.4.0/24 range add 10.10.4.100 10.10.4.200 failover=fo-group1
+configure network 10.10.5.0/24 range add 10.10.5.100 10.10.5.200 failover=fo-group1
+
+# ---------------------------------------------------------------------------
+# DNS Name Server Group
+# ---------------------------------------------------------------------------
+configure nsgroup add ns-group1 primary=ibdns01.example.com secondary=ibdns02.example.com secondary=ibdns03.example.com secondary=ibdns04.example.com secondary=ibdns05.example.com secondary=ibdns06.example.com
+
+# ---------------------------------------------------------------------------
+# 20 forward (authoritative) zones
+# ---------------------------------------------------------------------------
+configure zone add zone01.example.com ns_group=ns-group1
+configure zone add zone02.example.com ns_group=ns-group1
+configure zone add zone03.example.com ns_group=ns-group1
+configure zone add zone04.example.com ns_group=ns-group1
+configure zone add zone05.example.com ns_group=ns-group1
+configure zone add zone06.example.com ns_group=ns-group1
+configure zone add zone07.example.com ns_group=ns-group1
+configure zone add zone08.example.com ns_group=ns-group1
+configure zone add zone09.example.com ns_group=ns-group1
+configure zone add zone10.example.com ns_group=ns-group1
+configure zone add zone11.example.com ns_group=ns-group1
+configure zone add zone12.example.com ns_group=ns-group1
+configure zone add zone13.example.com ns_group=ns-group1
+configure zone add zone14.example.com ns_group=ns-group1
+configure zone add zone15.example.com ns_group=ns-group1
+configure zone add zone16.example.com ns_group=ns-group1
+configure zone add zone17.example.com ns_group=ns-group1
+configure zone add zone18.example.com ns_group=ns-group1
+configure zone add zone19.example.com ns_group=ns-group1
+configure zone add zone20.example.com ns_group=ns-group1
+
+# ---------------------------------------------------------------------------
+# 10 reverse zones (CIDR form is auto-rewritten to in-addr.arpa)
+# ---------------------------------------------------------------------------
+configure zone add 10.1.1.0/24  ns_group=ns-group1
+configure zone add 10.2.1.0/24  ns_group=ns-group1
+configure zone add 10.3.1.0/24  ns_group=ns-group1
+configure zone add 10.4.1.0/24  ns_group=ns-group1
+configure zone add 10.5.1.0/24  ns_group=ns-group1
+configure zone add 10.6.1.0/24  ns_group=ns-group1
+configure zone add 10.7.1.0/24  ns_group=ns-group1
+configure zone add 10.8.1.0/24  ns_group=ns-group1
+configure zone add 10.9.1.0/24  ns_group=ns-group1
+configure zone add 10.10.1.0/24 ns_group=ns-group1
+# lab-hosts.ibcli
+# 40 host records across zone01..zone20.example.com with a variety of shapes:
+#   - multiple IPv4s
+#   - IPv6 addresses
+#   - aliases (FQDN form)
+#   - some carry a MAC + fixed flag (host-embedded fixed address)
+#
+# Requires the extended `configure zone <zone> add host` keywords:
+#   ip=<ip>, ipv6=<addr>, alias=<fqdn>, fixed, mac=<mac>
+#
+# Networks used: 10.10.1.0/24..10.10.5.0/24 (avoiding DHCP range .100-.200).
+# IPv6 prefixes: 2001:db8:1::/64..2001:db8:5::/64.
+
+# ---------------------------------------------------------------------------
+# Batch A (hosts 1-10): single v4 + one v6 + one alias
+# ---------------------------------------------------------------------------
+configure zone zone01.example.com add host web01    10.10.1.11 ipv6=2001:db8:1::11 alias=www.zone01.example.com
+configure zone zone02.example.com add host web02    10.10.2.12 ipv6=2001:db8:2::12 alias=www.zone02.example.com
+configure zone zone03.example.com add host web03    10.10.3.13 ipv6=2001:db8:3::13 alias=www.zone03.example.com
+configure zone zone04.example.com add host web04    10.10.4.14 ipv6=2001:db8:4::14 alias=www.zone04.example.com
+configure zone zone05.example.com add host web05    10.10.5.15 ipv6=2001:db8:5::15 alias=www.zone05.example.com
+configure zone zone06.example.com add host mail01   10.10.1.16 ipv6=2001:db8:1::16 alias=smtp.zone06.example.com
+configure zone zone07.example.com add host mail02   10.10.2.17 ipv6=2001:db8:2::17 alias=smtp.zone07.example.com
+configure zone zone08.example.com add host mail03   10.10.3.18 ipv6=2001:db8:3::18 alias=smtp.zone08.example.com
+configure zone zone09.example.com add host mail04   10.10.4.19 ipv6=2001:db8:4::19 alias=smtp.zone09.example.com
+configure zone zone10.example.com add host mail05   10.10.5.20 ipv6=2001:db8:5::20 alias=smtp.zone10.example.com
+
+# ---------------------------------------------------------------------------
+# Batch B (hosts 11-20): multi-IPv4 + two aliases
+# ---------------------------------------------------------------------------
+configure zone zone11.example.com add host app01 10.10.1.21 ip=10.10.2.21 alias=app.zone11.example.com alias=api.zone11.example.com
+configure zone zone12.example.com add host app02 10.10.2.22 ip=10.10.3.22 alias=app.zone12.example.com alias=api.zone12.example.com
+configure zone zone13.example.com add host app03 10.10.3.23 ip=10.10.4.23 alias=app.zone13.example.com alias=api.zone13.example.com
+configure zone zone14.example.com add host app04 10.10.4.24 ip=10.10.5.24 alias=app.zone14.example.com alias=api.zone14.example.com
+configure zone zone15.example.com add host app05 10.10.5.25 ip=10.10.1.25 alias=app.zone15.example.com alias=api.zone15.example.com
+configure zone zone16.example.com add host db01  10.10.1.26 ip=10.10.2.26 alias=db.zone16.example.com alias=pg.zone16.example.com
+configure zone zone17.example.com add host db02  10.10.2.27 ip=10.10.3.27 alias=db.zone17.example.com alias=pg.zone17.example.com
+configure zone zone18.example.com add host db03  10.10.3.28 ip=10.10.4.28 alias=db.zone18.example.com alias=pg.zone18.example.com
+configure zone zone19.example.com add host db04  10.10.4.29 ip=10.10.5.29 alias=db.zone19.example.com alias=pg.zone19.example.com
+configure zone zone20.example.com add host db05  10.10.5.30 ip=10.10.1.30 alias=db.zone20.example.com alias=pg.zone20.example.com
+
+# ---------------------------------------------------------------------------
+# Batch C (hosts 21-30): fixed-address host records (MAC + fixed)
+# ---------------------------------------------------------------------------
+configure zone zone01.example.com add host printer01 10.10.1.31 mac=aa:bb:cc:00:00:31 fixed alias=prt01.zone01.example.com
+configure zone zone02.example.com add host printer02 10.10.2.32 mac=aa:bb:cc:00:00:32 fixed alias=prt02.zone02.example.com
+configure zone zone03.example.com add host printer03 10.10.3.33 mac=aa:bb:cc:00:00:33 fixed alias=prt03.zone03.example.com
+configure zone zone04.example.com add host printer04 10.10.4.34 mac=aa:bb:cc:00:00:34 fixed alias=prt04.zone04.example.com
+configure zone zone05.example.com add host printer05 10.10.5.35 mac=aa:bb:cc:00:00:35 fixed alias=prt05.zone05.example.com
+configure zone zone06.example.com add host phone01   10.10.1.36 mac=aa:bb:cc:00:00:36 fixed alias=voip01.zone06.example.com
+configure zone zone07.example.com add host phone02   10.10.2.37 mac=aa:bb:cc:00:00:37 fixed alias=voip02.zone07.example.com
+configure zone zone08.example.com add host phone03   10.10.3.38 mac=aa:bb:cc:00:00:38 fixed alias=voip03.zone08.example.com
+configure zone zone09.example.com add host phone04   10.10.4.39 mac=aa:bb:cc:00:00:39 fixed alias=voip04.zone09.example.com
+configure zone zone10.example.com add host phone05   10.10.5.40 mac=aa:bb:cc:00:00:40 fixed alias=voip05.zone10.example.com
+
+# ---------------------------------------------------------------------------
+# Batch D (hosts 31-40): dual-stack v4+v6 with multiple addresses each
+# ---------------------------------------------------------------------------
+configure zone zone11.example.com add host srv01 10.10.1.41 ip=10.10.2.41 ipv6=2001:db8:1::41 ipv6=2001:db8:2::41 alias=srv01-ext.zone11.example.com
+configure zone zone12.example.com add host srv02 10.10.2.42 ip=10.10.3.42 ipv6=2001:db8:2::42 ipv6=2001:db8:3::42 alias=srv02-ext.zone12.example.com
+configure zone zone13.example.com add host srv03 10.10.3.43 ip=10.10.4.43 ipv6=2001:db8:3::43 ipv6=2001:db8:4::43 alias=srv03-ext.zone13.example.com
+configure zone zone14.example.com add host srv04 10.10.4.44 ip=10.10.5.44 ipv6=2001:db8:4::44 ipv6=2001:db8:5::44 alias=srv04-ext.zone14.example.com
+configure zone zone15.example.com add host srv05 10.10.5.45 ip=10.10.1.45 ipv6=2001:db8:5::45 ipv6=2001:db8:1::45 alias=srv05-ext.zone15.example.com
+configure zone zone16.example.com add host srv06 10.10.1.46 ip=10.10.2.46 ipv6=2001:db8:1::46 ipv6=2001:db8:2::46 alias=srv06-ext.zone16.example.com
+configure zone zone17.example.com add host srv07 10.10.2.47 ip=10.10.3.47 ipv6=2001:db8:2::47 ipv6=2001:db8:3::47 alias=srv07-ext.zone17.example.com
+configure zone zone18.example.com add host srv08 10.10.3.48 ip=10.10.4.48 ipv6=2001:db8:3::48 ipv6=2001:db8:4::48 alias=srv08-ext.zone18.example.com
+configure zone zone19.example.com add host srv09 10.10.4.49 ip=10.10.5.49 ipv6=2001:db8:4::49 ipv6=2001:db8:5::49 alias=srv09-ext.zone19.example.com
+configure zone zone20.example.com add host srv10 10.10.5.50 ip=10.10.1.50 ipv6=2001:db8:5::50 ipv6=2001:db8:1::50 alias=srv10-ext.zone20.example.com
+
+# ---------------------------------------------------------------------------
+# Network containers (IPv4)
+# ---------------------------------------------------------------------------
+configure network container add 10.20.0.0/16 comment="v4-container-east"
+configure network container add 10.30.0.0/16 comment="v4-container-west"
+configure network container add 10.40.0.0/16 comment="v4-container-lab"
+
+# ---------------------------------------------------------------------------
+# Network containers (IPv6)
+# ---------------------------------------------------------------------------
+configure network container add 2001:db8:200::/48 comment="v6-container-east"
+configure network container add 2001:db8:300::/48 comment="v6-container-west"
+configure network container add 2001:db8:400::/48 comment="v6-container-lab"
+
+# ---------------------------------------------------------------------------
+# 25 IPv6 networks (/64 each) carved across the three v6 containers
+# ---------------------------------------------------------------------------
+configure network add 2001:db8:200:1::/64  comment="v6-net-east-01"
+configure network add 2001:db8:200:2::/64  comment="v6-net-east-02"
+configure network add 2001:db8:200:3::/64  comment="v6-net-east-03"
+configure network add 2001:db8:200:4::/64  comment="v6-net-east-04"
+configure network add 2001:db8:200:5::/64  comment="v6-net-east-05"
+configure network add 2001:db8:200:6::/64  comment="v6-net-east-06"
+configure network add 2001:db8:200:7::/64  comment="v6-net-east-07"
+configure network add 2001:db8:200:8::/64  comment="v6-net-east-08"
+configure network add 2001:db8:200:9::/64  comment="v6-net-east-09"
+configure network add 2001:db8:300:1::/64  comment="v6-net-west-01"
+configure network add 2001:db8:300:2::/64  comment="v6-net-west-02"
+configure network add 2001:db8:300:3::/64  comment="v6-net-west-03"
+configure network add 2001:db8:300:4::/64  comment="v6-net-west-04"
+configure network add 2001:db8:300:5::/64  comment="v6-net-west-05"
+configure network add 2001:db8:300:6::/64  comment="v6-net-west-06"
+configure network add 2001:db8:300:7::/64  comment="v6-net-west-07"
+configure network add 2001:db8:300:8::/64  comment="v6-net-west-08"
+configure network add 2001:db8:400:1::/64  comment="v6-net-lab-01"
+configure network add 2001:db8:400:2::/64  comment="v6-net-lab-02"
+configure network add 2001:db8:400:3::/64  comment="v6-net-lab-03"
+configure network add 2001:db8:400:4::/64  comment="v6-net-lab-04"
+configure network add 2001:db8:400:5::/64  comment="v6-net-lab-05"
+configure network add 2001:db8:400:6::/64  comment="v6-net-lab-06"
+configure network add 2001:db8:400:7::/64  comment="v6-net-lab-07"
+configure network add 2001:db8:400:8::/64  comment="v6-net-lab-08"
+
+# ---------------------------------------------------------------------------
+# Extensible Attribute: DC Location (enum, list values DC1/DC2/DC3)
+# Requires ea.py patch that allows quoted names in add/delete.
+# ---------------------------------------------------------------------------
+configure grid attribute add "DC Location" type enum comment "Data center location" list_value=DC1 list_value=DC2 list_value=DC3
+
+# ---------------------------------------------------------------------------
+# Shared Record Groups + shared records
+# ---------------------------------------------------------------------------
+configure shared_record_group add srg-common    comment="Common shared records"
+configure shared_record_group add srg-mail      comment="Mail-related shared records"
+configure shared_record_group add srg-directory comment="Directory/LDAP shared records"
+
+# srg-common: A/AAAA/CNAME/TXT
+configure shared_record a    add www    203.0.113.10  group=srg-common
+configure shared_record a    add api    203.0.113.20  group=srg-common
+configure shared_record aaaa add www    2001:db8::10  group=srg-common
+configure shared_record cname add portal www         group=srg-common
+configure shared_record txt  add info   "smoke-test"  group=srg-common
+
+# srg-mail: MX + TXT (SPF/DMARC)
+configure shared_record mx  add mail  mail1.common.example.com 10 group=srg-mail
+configure shared_record mx  add mail  mail2.common.example.com 20 group=srg-mail
+configure shared_record txt add spf   "v=spf1 -all"               group=srg-mail
+configure shared_record txt add dmarc "v=DMARC1; p=reject"        group=srg-mail
+
+# srg-directory: SRV + A
+configure shared_record srv add _ldap._tcp     0 10 389 ldap1.directory.example.com group=srg-directory
+configure shared_record srv add _kerberos._tcp 0 10 88  kdc1.directory.example.com  group=srg-directory
+configure shared_record a   add dc1 10.10.1.201 group=srg-directory
+configure shared_record a   add dc2 10.10.1.202 group=srg-directory
+
+# ---------------------------------------------------------------------------
+# Associate SRGs with zones (requires srg=<name> on zone add/modify,
+# which writes the `srgs` list field on zone_auth objects).
+# Split to avoid collisions with existing host-record aliases:
+#   srg-common (www/api)       -> zones 06-10
+#   srg-mail   (mail/spf/dmarc)-> zones 01-05
+#   srg-directory (dc1/dc2/srv)-> zones 11-20
+# ---------------------------------------------------------------------------
+configure zone zone06.example.com modify srg=srg-common
+configure zone zone07.example.com modify srg=srg-common
+configure zone zone08.example.com modify srg=srg-common
+configure zone zone09.example.com modify srg=srg-common
+configure zone zone10.example.com modify srg=srg-common
+
+configure zone zone01.example.com modify srg=srg-mail
+configure zone zone02.example.com modify srg=srg-mail
+configure zone zone03.example.com modify srg=srg-mail
+configure zone zone04.example.com modify srg=srg-mail
+configure zone zone05.example.com modify srg=srg-mail
+
+configure zone zone11.example.com modify srg=srg-directory
+configure zone zone12.example.com modify srg=srg-directory
+configure zone zone13.example.com modify srg=srg-directory
+configure zone zone14.example.com modify srg=srg-directory
+configure zone zone15.example.com modify srg=srg-directory
+configure zone zone16.example.com modify srg=srg-directory
+configure zone zone17.example.com modify srg=srg-directory
+configure zone zone18.example.com modify srg=srg-directory
+configure zone zone19.example.com modify srg=srg-directory
+configure zone zone20.example.com modify srg=srg-directory
+
+# ---------------------------------------------------------------------------
+# Expansion: 2 more DHCP members + second failover group.
+# Move networks 10.10.4.0/24 and 10.10.5.0/24 (and their ranges) to the new pair.
+# Sequence per network: delete range -> move network members -> re-add range
+# bound to the new failover group. Required because the old range pinned the
+# prior members as failover peers.
+# ---------------------------------------------------------------------------
+configure grid Migration member add ibdhcp03.example.com ipaddress=192.0.2.113/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::113/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.113/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::113/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dhcp license=nios license=enterprise
+configure grid Migration member add ibdhcp04.example.com ipaddress=192.0.2.114/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::114/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.114/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::114/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dhcp license=nios license=enterprise
+
+configure network failover add fo-group2 primary ibdhcp03.example.com secondary ibdhcp04.example.com
+
+configure network 10.10.4.0/24 range delete 10.10.4.100 10.10.4.200
+configure network 10.10.4.0/24 move member 192.0.2.113 member 192.0.2.114
+configure network 10.10.4.0/24 range add 10.10.4.100 10.10.4.200 failover=fo-group2
+
+configure network 10.10.5.0/24 range delete 10.10.5.100 10.10.5.200
+configure network 10.10.5.0/24 move member 192.0.2.113 member 192.0.2.114
+configure network 10.10.5.0/24 range add 10.10.5.100 10.10.5.200 failover=fo-group2
+
+# ---------------------------------------------------------------------------
+# External DNS view: new view, 4 new DNS members, nsgroup, 5 zones, 30 records.
+# Note: record-type `add` commands (a/aaaa/cname/txt) now accept view=<name>
+# via updated waypoint registration in src/ibcli/commands/zone.py.
+# ---------------------------------------------------------------------------
+configure view add External comment="External DNS view"
+
+configure grid Migration member add ibdns07.example.com ipaddress=192.0.2.107/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::107/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.107/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::107/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+configure grid Migration member add ibdns08.example.com ipaddress=192.0.2.108/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::108/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.108/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::108/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+configure grid Migration member add ibdns09.example.com ipaddress=192.0.2.109/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::109/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.109/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::109/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+configure grid Migration member add ibdns10.example.com ipaddress=192.0.2.110/24 gateway=192.0.2.1 ipv6addr=2001:db8:64:40::110/64 ipv6gateway=2001:db8:64:40::1 mgmt_ipaddress=198.51.100.110/24 mgmt_gateway=198.51.100.1 mgmt_ipv6addr=2001:db8:65:40::110/64 mgmt_ipv6gateway=2001:db8:65:40::1 platform=VNIOS hwtype=IB-V1425 license=dns license=nios license=enterprise
+
+configure nsgroup add ns-external primary=ibdns07.example.com secondary=ibdns08.example.com secondary=ibdns09.example.com secondary=ibdns10.example.com
+
+configure zone add ext01.example.net ns_group=ns-external view=External
+configure zone add ext02.example.net ns_group=ns-external view=External
+configure zone add ext03.example.net ns_group=ns-external view=External
+configure zone add ext04.example.net ns_group=ns-external view=External
+configure zone add ext05.example.net ns_group=ns-external view=External
+
+# ext01 - 10 records (A x3, AAAA, CNAME x2, MX, TXT x2, Host)
+configure zone ext01.example.net add a    web    203.0.113.10   view=External
+configure zone ext01.example.net add a    web2   203.0.113.11   view=External
+configure zone ext01.example.net add a    api    203.0.113.12   view=External
+configure zone ext01.example.net add aaaa web    2001:db8:9::10 view=External
+configure zone ext01.example.net add cname www    web.ext01.example.net view=External
+configure zone ext01.example.net add cname portal web.ext01.example.net view=External
+configure zone ext01.example.net add mx    mail mail.ext01.example.net 10 view=External
+configure zone ext01.example.net add txt   spf  "v=spf1 mx -all"             view=External
+configure zone ext01.example.net add txt   dkim "v=DKIM1; k=rsa; p=AAAA"     view=External
+configure zone ext01.example.net add host  ns1  203.0.113.1 view=External
+
+# ext02 - 8 records (A x2, AAAA x2, MX x2 apex, TXT x2)
+configure zone ext02.example.net add a    mail1 198.51.100.10 view=External
+configure zone ext02.example.net add a    mail2 198.51.100.11 view=External
+configure zone ext02.example.net add aaaa mail1 2001:db8:a::10 view=External
+configure zone ext02.example.net add aaaa mail2 2001:db8:a::11 view=External
+configure zone ext02.example.net add mx   ext02.example.net mail1.ext02.example.net 10 view=External
+configure zone ext02.example.net add mx   ext02.example.net mail2.ext02.example.net 20 view=External
+configure zone ext02.example.net add txt  _spf   "v=spf1 mx ip4:198.51.100.0/24 -all" view=External
+configure zone ext02.example.net add txt  _dmarc "v=DMARC1; p=reject; rua=mailto:postmaster@ext02.example.net" view=External
+
+# ext03 - 6 records (A x2, AAAA, CNAME, MX, TXT)
+configure zone ext03.example.net add a    svc1 203.0.113.50  view=External
+configure zone ext03.example.net add a    svc2 203.0.113.51  view=External
+configure zone ext03.example.net add aaaa svc1 2001:db8:b::50 view=External
+configure zone ext03.example.net add cname portal svc1.ext03.example.net view=External
+configure zone ext03.example.net add mx    mail  mail.ext03.example.net 10 view=External
+configure zone ext03.example.net add txt   note  "Service tier 1" view=External
+
+# ext04 - 4 records (A x2, AAAA, CNAME)
+configure zone ext04.example.net add a    api1 203.0.113.70 view=External
+configure zone ext04.example.net add a    api2 203.0.113.71 view=External
+configure zone ext04.example.net add aaaa api1 2001:db8:c::70 view=External
+configure zone ext04.example.net add cname api  api1.ext04.example.net view=External
+
+# ext05 - 2 records (A, TXT)
+configure zone ext05.example.net add a   misc 203.0.113.90 view=External
+configure zone ext05.example.net add txt misc "external smoke test" view=External
+
+# ---------------------------------------------------------------------------
+# Named ACL for DNS recursion, applied as the grid-wide recursion allow-list.
+#
+# WAPI *does* support a named-ACL reference here even though the schema/docs
+# show only {address, permission}. Capture from NIOS UI shows one addressac
+# entry with only `_ref` pointing at the namedacl object. The command
+# `configure grid <grid> dns allow_recursion` (see src/ibcli/commands/grid.py)
+# supports all three UI modes:
+#   any                          -> radio: Any
+#   acl=<name>                   -> radio: Named ACL (stored as _ref)
+#   ace=<cidr> [deny_ace=<cidr>] -> radio: Set of ACEs (repeatable)
+#
+# The grid-level setting applies to all views including Internal; per-view
+# recursion ACL is not exposed by WAPI on this release.
+# ---------------------------------------------------------------------------
+configure acl add acl-recursion-internal access_list=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16 comment="Networks allowed to recurse via Internal DNS view"
+
+configure grid Migration dns allow_recursion acl=acl-recursion-internal
+
+# ===========================================================================
+# DHCP DEPTH
+# ===========================================================================
+# Custom DHCP option space for Cisco LWAP with two vendor options
+configure option_space add Cisco-AP
+configure optiondef add wlc-address  code 241 type "array of ip-address" space=Cisco-AP
+configure optiondef add wlc-hostname code 242 type string space=Cisco-AP
+
+# Standard DHCP options on all 5 /24s (routers, domain, DNS, NTP).
+# option=<name>=<value> and option=<space>:<name>=<value>. Added the keyword
+# and parser support in src/ibcli/commands/network.py.
+configure network 10.10.1.0/24 modify option=routers=10.10.1.1 option=domain-name=example.com option=domain-name-servers=10.10.1.2,10.10.2.2 option=ntp-servers=10.10.1.3 option=Cisco-AP:wlc-address=10.10.99.10,10.10.99.11 option=Cisco-AP:wlc-hostname=wlc1.example.com
+configure network 10.10.2.0/24 modify option=routers=10.10.2.1 option=domain-name=example.com option=domain-name-servers=10.10.1.2,10.10.2.2 option=ntp-servers=10.10.1.3 option=Cisco-AP:wlc-address=10.10.99.10,10.10.99.11
+configure network 10.10.3.0/24 modify option=routers=10.10.3.1 option=domain-name=example.com option=domain-name-servers=10.10.1.2,10.10.2.2 option=ntp-servers=10.10.1.3
+configure network 10.10.4.0/24 modify option=routers=10.10.4.1 option=domain-name=example.com option=domain-name-servers=10.10.1.2,10.10.2.2 option=ntp-servers=10.10.1.3
+configure network 10.10.5.0/24 modify option=routers=10.10.5.1 option=domain-name=example.com option=domain-name-servers=10.10.1.2,10.10.2.2 option=ntp-servers=10.10.1.3
+
+# Standalone fixed addresses (host-independent MAC→IP bindings)
+configure network 10.10.3.0/24 fixed add 10.10.3.51 aa:bb:cc:10:00:11
+configure network 10.10.3.0/24 fixed add 10.10.3.52 aa:bb:cc:10:00:22
+configure network 10.10.3.0/24 fixed add 10.10.3.53 aa:bb:cc:10:00:33
+
+# MAC filter + entries
+configure network macfilter add trusted-aps
+configure network filter trusted-aps add macaddress aa:bb:cc:01:00:01 comment="Trusted AP 1"
+configure network filter trusted-aps add macaddress aa:bb:cc:01:00:02 comment="Trusted AP 2"
+configure network filter trusted-aps add macaddress aa:bb:cc:01:00:03 comment="Trusted AP 3"
+configure network filter trusted-aps add macaddress aa:bb:cc:01:00:04 comment="Trusted AP 4"
+configure network filter trusted-aps add macaddress aa:bb:cc:01:00:05 comment="Trusted AP 5"
+
+# Fingerprint filter + option filter (fp=<name> references an existing
+# Fingerprint definition; the keyword was added to avoid collision with the
+# "fingerprint" in the command prefix)
+configure filter fingerprint add lab-windows fp="Microsoft Windows Kernel 5.1,5.2"
+configure filter option add lab-lwap comment="Match Cisco APs via vendor-class"
+
+# Templates + carved /20
+configure template range add lab-range-100 number_of_addresses=100 offset=100 comment="100-addr DHCP range"
+configure template range add lab-range-50  number_of_addresses=50  offset=200 comment="50-addr DHCP range"
+configure template network add lab-net24 cidr 24 comment="Standard /24 net template"
+configure template network add lab-net23 cidr 23 comment="Standard /23 net template"
+configure network container add 10.50.0.0/20 comment="/20 to subdivide into /24s"
+configure network add 10.50.1.0/24 comment="Subnet 1 under 10.50.0.0/20"
+configure network add 10.50.2.0/24 comment="Subnet 2 under 10.50.0.0/20"
+configure network add 10.50.3.0/24 comment="Subnet 3 under 10.50.0.0/20"
+configure network add 10.50.4.0/24 comment="Subnet 4 under 10.50.0.0/20"
+configure network add 10.50.5.0/24 comment="Subnet 5 under 10.50.0.0/20"
+configure network add 10.50.6.0/24 comment="Subnet 6 under 10.50.0.0/20"
+configure network add 10.50.7.0/24 comment="Subnet 7 under 10.50.0.0/20"
+configure network add 10.50.8.0/24 comment="Subnet 8 under 10.50.0.0/20"
+
+# ===========================================================================
+# DNS DEPTH
+# ===========================================================================
+# DNSSEC: enable grid-wide. Actual zone signing is not in ibcli - sign via
+# WAPI POST <zone_auth_ref>?_function=dnssec_operation {"operation":"SIGN"}.
+configure grid Migration dns set dnssec_enabled=True dnssec_validation_enabled=True
+
+# Non-auth zones
+configure zone add corp.partner.com forward_to=ns1,8.8.8.8 forward_to=ns2,8.8.4.4 comment="Forward to partner DNS"
+configure zone add stub.partner.com stub_from=ns1,203.0.113.53 comment="Stub of partner zone"
+configure zone add child.zone01.example.com delegate_to=ns1,203.0.113.70 delegate_to=ns2,203.0.113.71 comment="Delegation under zone01"
+
+# Bulk hosts
+configure bulkhost add ap      zone=zone01.example.com start_addr=10.10.1.60 end_addr=10.10.1.80 comment="Access points"
+configure bulkhost add printer zone=zone02.example.com start_addr=10.10.2.60 end_addr=10.10.2.75 comment="Printers"
+
+# ===========================================================================
+# RPZ
+# ===========================================================================
+configure rpz zone add rpz.lab.local policy=GIVEN comment="Lab RPZ policy zone"
+configure rpz record a    add badsite.example.com.rpz.lab.local  127.0.0.1 zone rpz.lab.local
+configure rpz record a    add malware.example.com.rpz.lab.local  127.0.0.1 zone rpz.lab.local
+configure rpz record aaaa add badsite6.example.com.rpz.lab.local ::1       zone rpz.lab.local
+
+# ===========================================================================
+# DTC
+# ===========================================================================
+configure dtc server add web1 host=203.0.113.10 comment="Web server 1"
+configure dtc server add web2 host=203.0.113.20 comment="Web server 2"
+configure dtc server add web3 host=203.0.113.30 comment="Web server 3"
+configure dtc monitor icmp add web-icmp comment="Basic ICMP liveness"
+configure dtc monitor http add web-http comment="HTTP 200 check"
+configure dtc pool add web-pool lb_preferred_method=round_robin comment="Web DTC pool"
+configure dtc lbdn add web-lbdn lb_method=round_robin patterns=www.dtc.example.com comment="DTC LBDN for www"
+# Wire servers + monitors into the pool, then attach the pool to the LBDN
+# (handlers in src/ibcli/commands/dtc.py; each command reads the parent,
+# appends to its link array, and PUTs the whole list back).
+configure dtc pool web-pool server add web1
+configure dtc pool web-pool server add web2
+configure dtc pool web-pool server add web3
+configure dtc pool web-pool monitor add icmp web-icmp
+configure dtc pool web-pool monitor add http web-http
+configure dtc lbdn web-lbdn pool add web-pool
+
+# ===========================================================================
+# Identity / admin
+# ===========================================================================
+configure admin role  add lab-operator comment="Lab operator role"
+configure admin role  add lab-auditor  comment="Lab auditor (read-only)"
+configure admin group add lab-netops   comment="Lab network ops group" role=lab-operator
+configure admin group add lab-audit    comment="Lab audit group"       role=lab-auditor
+configure admin user  add alice password=AliceP@ss123 group=lab-netops comment="Alice - netops"
+configure admin user  add bob   password=BobP@ss123   group=lab-audit  comment="Bob - auditor"
+
+# Auth service definitions. Handlers in src/ibcli/commands/auth.py fill in
+# sensible NIOS defaults (LDAP: timeout/retries/recovery_interval/uid; AD:
+# per-DC auth_port/encryption/mgmt_port; RADIUS: per-server auth_port) so a
+# minimal command actually lands against a real grid.
+configure auth ldap   add lab-ldap   server=ldap.corp.example.com:636 base_dn=dc=corp,dc=example,dc=com comment="Lab LDAP"
+configure auth ad     add lab-ad     domain=corp.example.com dc=dc1.corp.example.com dc=dc2.corp.example.com comment="Lab AD"
+configure auth radius add lab-radius server=radius.corp.example.com shared_secret=labsecret comment="Lab RADIUS"
+
+# ===========================================================================
+# EA assignments + search
+# ===========================================================================
+# Assign the DC Location EA onto a couple of existing networks via
+# `configure network <cidr> modify set "DC Location" <value>`. The handler
+# in src/ibcli/commands/network.py parses quoted EA names via _parse_extattrs.
+# The EA-filter *search* on `show network ea="DC Location:DC1"` exercises the
+# WAPI "*<EA name>"=value filter form.
+configure network 10.10.1.0/24 modify set "DC Location" DC1
+configure network 10.10.2.0/24 modify set "DC Location" DC2
+
+# ===========================================================================
+# Anycast loopbacks on every DNS member (IPv4 + IPv6)
+# ===========================================================================
+# Two shared anycast addresses - 192.0.2.53 (v4) and 2001:db8:0:53::53 (v6) -
+# attached as LOOPBACK/anycast entries on all 10 DNS members. Handler lives
+# in src/ibcli/commands/grid.py (cli_member_anycast_add) and builds an
+# additional_ip_list interface struct per PUT. NIOS will honor the v4 right
+# away; the v6 loopback can't apply until the LAN IPv6 VIP is live, which
+# means already-online members get it and pre-provisioned members get it on
+# first boot.
+configure grid Migration member ibdns01.example.com anycast add 192.0.2.53
+configure grid Migration member ibdns02.example.com anycast add 192.0.2.53
+configure grid Migration member ibdns03.example.com anycast add 192.0.2.53
+configure grid Migration member ibdns04.example.com anycast add 192.0.2.53
+configure grid Migration member ibdns05.example.com anycast add 192.0.2.53
+configure grid Migration member ibdns06.example.com anycast add 192.0.2.53
+configure grid Migration member ibdns07.example.com anycast add 192.0.2.53
+configure grid Migration member ibdns08.example.com anycast add 192.0.2.53
+configure grid Migration member ibdns09.example.com anycast add 192.0.2.53
+configure grid Migration member ibdns10.example.com anycast add 192.0.2.53
+
+configure grid Migration member ibdns01.example.com anycast add 2001:db8:0:53::53
+configure grid Migration member ibdns02.example.com anycast add 2001:db8:0:53::53
+configure grid Migration member ibdns03.example.com anycast add 2001:db8:0:53::53
+configure grid Migration member ibdns04.example.com anycast add 2001:db8:0:53::53
+configure grid Migration member ibdns05.example.com anycast add 2001:db8:0:53::53
+configure grid Migration member ibdns06.example.com anycast add 2001:db8:0:53::53
+configure grid Migration member ibdns07.example.com anycast add 2001:db8:0:53::53
+configure grid Migration member ibdns08.example.com anycast add 2001:db8:0:53::53
+configure grid Migration member ibdns09.example.com anycast add 2001:db8:0:53::53
+configure grid Migration member ibdns10.example.com anycast add 2001:db8:0:53::53

@@ -1,0 +1,48 @@
+# Smoke-test batch file - parameter-free `show` commands.
+#
+# Usage:
+#   ibcli -s <grid-host> -u <user> -p <pass> docs/examples/smoke-show.ibcli
+#
+# Every command here is read-only and takes no required arguments,
+# so it's safe to run against a live grid as a quick connectivity /
+# SDK-surface smoke test after the ibx-nios-sdk refactor.
+
+# --- connection sanity ---
+show debug session
+show server version
+show time
+
+# --- grid / views / members ---
+show grid
+show views
+show member
+show schedule
+
+# --- networks / IPAM ---
+show network
+show network container
+show network shared
+
+# --- DHCP ---
+show range
+show fixed
+show lease
+show template network
+show template fixed
+
+# --- DNS zones ---
+show zone
+show zone ns_group
+
+# --- admin / RADIUS ---
+show admin user
+show admin role
+show admin admin_group
+show radius user
+show radius device
+
+# --- extensible attributes ---
+show grid attribute
+
+# --- CSV task status ---
+show csv task

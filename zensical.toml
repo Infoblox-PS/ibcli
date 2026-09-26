@@ -1,0 +1,186 @@
+# Zensical site configuration.
+#
+# NOTE ON STRUCTURE: Zensical reads `[project]` and DISCARDS every other
+# top-level table (config.py: `if "project" in config: config =
+# config["project"]`). Anything meant to take effect has to be nested under
+# `[project]` - a sibling `[markdown_extensions]` table parses fine and is
+# then silently thrown away. Keep new sections under `[project.*]`.
+
+[project]
+site_name = "ibcli"
+site_description = "Python port of the Infoblox CLI, talking to NIOS WAPI"
+site_url = "https://infoblox-ps.github.io/ibcli/"
+repo_url = "https://github.com/Infoblox-PS/ibcli"
+repo_name = "Infoblox-PS/ibcli"
+edit_uri = "edit/main/docs/"
+copyright = "Copyright (C) 2026 Infoblox Inc. INFOBLOX is a trademark of Infoblox Inc. or its affiliated companies, registered in the United States and other countries."
+
+extra_css = ["assets/stylesheets/theme.css"]
+
+nav = [
+    {"Home" = "index.md"},
+    {"Getting Started" = [
+        "getting-started/index.md",
+        "getting-started/installation.md",
+        "getting-started/first-connection.md",
+        "getting-started/tab-completion.md",
+    ]},
+    {"User Guide" = [
+        "user-guide/index.md",
+        "user-guide/invocation.md",
+        "user-guide/repl.md",
+        "user-guide/aliases.md",
+        "user-guide/batch-mode.md",
+        "user-guide/extensible-attributes.md",
+    ]},
+    {"Commands" = [
+        "commands/index.md",
+        "commands/cookbook.md",
+        "commands/playbook.md",
+        "commands/zones.md",
+        "commands/records.md",
+        "commands/networks.md",
+        "commands/network-containers.md",
+        "commands/shared-networks.md",
+        "commands/network-templates.md",
+        "commands/dhcp-ranges-fixed.md",
+        "commands/dhcp-mac-filters.md",
+        "commands/dhcp-failover-options.md",
+        "commands/dhcp-leases.md",
+        "commands/admin.md",
+        "commands/radius.md",
+        "commands/grid.md",
+        "commands/restart.md",
+        "commands/extensible-attributes.md",
+        "commands/files.md",
+        "commands/certificates.md",
+        "commands/csv.md",
+    ]},
+    {"Reference" = [
+        "reference/index.md",
+        "reference/wapi-mapping.md",
+        "reference/parser.md",
+        "reference/cli-flags.md",
+        "reference/troubleshooting.md",
+        "reference/real-grid-status.md",
+    ]},
+    {"Development" = [
+        "development/index.md",
+        "development/architecture.md",
+        "development/adding-commands.md",
+        "development/testing.md",
+        "development/known-quirks.md",
+    ]},
+    {"About" = [
+        "about/license.md",
+        "about/credits.md",
+    ]},
+]
+
+# ---------------------------------------------------------------------------
+# Theme - Infoblox brand (Brand Guidelines 20250613v2).
+#
+# Green and Black: black chrome over white in light mode, Infoblox Black as
+# the canvas in dark mode, Green carrying emphasis. Lato is the brand's
+# approved free alternative to the licensed Alliance family.
+# `primary = "custom"` sends the theme to docs/assets/stylesheets/theme.css.
+# ---------------------------------------------------------------------------
+
+[project.theme]
+name = "material"
+variant = "modern"          # Inter + JetBrains Mono, Lucide icons
+language = "en"
+
+features = [
+    # Top-level sections become tabs, so Commands / Reference / Development
+    # are one click apart instead of buried in one long sidebar.
+    "navigation.tabs",
+    "navigation.tabs.sticky",
+    "navigation.sections",
+    "navigation.top",
+    "navigation.tracking",
+    "navigation.indexes",
+    "navigation.footer",
+    # Client-side routing: no white flash between pages, and sidebar scroll
+    # position survives navigation.
+    "navigation.instant",
+    "navigation.instant.progress",
+    # Search: highlight hits on the target page, and allow sharing a search.
+    "search.highlight",
+    "search.share",
+    # This is a CLI reference - nearly every page is command blocks, so
+    # one-click copy matters more here than on a typical docs site.
+    "content.code.copy",
+    "content.code.annotate",
+    "content.tabs.link",
+    "content.action.edit",
+    "toc.follow",
+]
+
+# Official Infoblox master artwork, downloaded unmodified from infoblox.com.
+# The guidelines are explicit that the logo must never be recreated, recoloured,
+# cropped or restyled, so these files are used as-is; the dark-scheme swap to
+# the white version is the guidelines' own rule for colour backgrounds.
+logo = "assets/images/infoblox-logo.svg"
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+[project.theme.font]
+text = "Lato"
+code = "JetBrains Mono"
+
+# Light: white canvas (Quarry `surface`), slate ink, #0066FF links at
+# 4.83:1. Quarry's own `background` (#F4F6F9) is deliberately not the
+# canvas: the same blue measures 4.46:1 on it, just under AA.
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "custom"
+
+[project.theme.palette.toggle]
+icon = "lucide/moon"
+name = "Switch to dark mode"
+
+# Dark: Quarry's slate-navy canvas (#0B1120) with #3B82F6 carrying
+# emphasis at 5.12:1. Blue lifts between schemes because #0066FF is far
+# too dark to read on the navy.
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+
+[project.theme.palette.toggle]
+icon = "lucide/sun"
+name = "Switch to light mode"
+
+# Search is on by default; stated explicitly so it is visible in config.
+[project.plugins.search]
+enabled = true
+
+# ---------------------------------------------------------------------------
+# Markdown extensions - intentionally NOT set.
+#
+# This file used to carry a top-level `[markdown_extensions]` table in the
+# MkDocs shape (`extensions = [...]` plus a `[config]` sub-table). Two things
+# were wrong with it and cancelled out: it sat outside `[project]`, so it was
+# discarded unread, and Zensical expects a flat `name = {opts}` mapping, so it
+# would have raised had it ever been read.
+#
+# Every extension it listed is already in Zensical's defaults, which is what
+# the site has actually been building with. Enabling that list verbatim would
+# therefore be a net REMOVAL - dropping pymdownx.tilde (~~strikethrough~~),
+# magiclink (bare URLs), emoji, smartsymbols, betterem, caret, arithmatex and
+# superfences' mermaid fence - and silently changing how existing pages
+# render. Leaving this unset keeps the defaults, and keeps the docs looking
+# the way they do today.
+#
+# To pin extensions explicitly, use the flat form and start from the full
+# default set in zensical/config.py, not from the old list:
+#
+#   [project.markdown_extensions]
+#   toc = {permalink = true}
+#   "pymdownx.highlight" = {anchor_linenums = true, line_spans = "__span"}
+# ---------------------------------------------------------------------------
