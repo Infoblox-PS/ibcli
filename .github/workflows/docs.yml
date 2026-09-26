@@ -1,0 +1,43 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pipx install poetry
+      # Install through the `docs` group rather than a bare `pip install
+      # zensical`, so the version that publishes the site is the pinned one CI
+      # verified. An unpinned install here could ship a site built by a
+      # zensical release the Docs build job never saw.
+      - name: Install Zensical
+        run: poetry install --only docs --no-interaction --no-ansi
+      - name: Build
+        run: poetry run zensical build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

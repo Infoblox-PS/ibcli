@@ -1,0 +1,163 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    # POETRY_SYSTEM_GIT_CLIENT forces Poetry to shell out to /usr/bin/git
+    # instead of using its bundled dulwich client - so git's insteadOf
+    # rewriting (set below) actually takes effect on VCS dependencies.
+    env:
+      POETRY_SYSTEM_GIT_CLIENT: "true"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: poetry-${{ runner.os }}-${{ matrix.python }}-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            poetry-${{ runner.os }}-${{ matrix.python }}-
+      # ibx-nios-sdk is a prerequisite, not a declared dependency, so this
+      # step no longer touches a private repo and cannot fail for want of
+      # credentials.
+      - name: Install dependencies (runtime + dev)
+        run: poetry install --with dev --no-interaction --no-ansi
+      # The SDK is private, so it is installed separately with a PAT that has
+      # Contents:Read on Infoblox-PS/ibx-nios-sdk, stored as the `SDK_PAT`
+      # secret. GITHUB_TOKEN is deliberately NOT a fallback: it is scoped to
+      # this repository and can never read another one, so falling back to it
+      # only turns a missing secret into a confusing clone error.
+      - name: Install ibx-nios-sdk (prerequisite)
+        id: sdk
+        env:
+          SDK_PAT: ${{ secrets.SDK_PAT }}
+        run: |
+          set -euo pipefail
+          # Trim stray whitespace: `echo "$TOKEN" | gh secret set` stores the
+          # trailing newline, which makes git reject an otherwise valid token
+          # with the same "Invalid username or token" as a wrong one.
+          TOKEN="$(printf '%s' "${SDK_PAT:-}" | tr -d '[:space:]')"
+
+          if [ -z "$TOKEN" ]; then
+            echo "::error title=SDK_PAT not configured::The ibx-nios-sdk prerequisite lives in a private repo and cannot be installed without a token. Create a PAT with Contents:Read on Infoblox-PS/ibx-nios-sdk and add it as the SDK_PAT repository secret, then re-run."
+            exit 1
+          fi
+
+          # Preflight against the API so a bad token is diagnosed precisely
+          # instead of surfacing as a generic git clone failure. Only the
+          # status code is ever printed - never the token.
+          code="$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/Infoblox-PS/ibx-nios-sdk || echo 000)"
+          case "$code" in
+            200) : ;;
+            401) echo "::error title=SDK_PAT rejected::GitHub returned 401 for the SDK_PAT secret - the token is invalid, revoked or expired. Issue a new one and update the secret." ; exit 1 ;;
+            403) echo "::error title=SDK_PAT forbidden::GitHub returned 403 for SDK_PAT. The token authenticates but is not allowed to read Infoblox-PS/ibx-nios-sdk - check SSO authorization for the Infoblox-PS org." ; exit 1 ;;
+            404) echo "::error title=SDK_PAT lacks repo access::GitHub returned 404 for Infoblox-PS/ibx-nios-sdk. A fine-grained PAT returns 404 for repos it was not granted. Grant it Contents:Read on that repository (a classic PAT needs the full 'repo' scope)." ; exit 1 ;;
+            *)   echo "::error title=SDK_PAT preflight failed::Unexpected HTTP $code from api.github.com while checking access to Infoblox-PS/ibx-nios-sdk." ; exit 1 ;;
+          esac
+
+          # Rewrite rather than embedding credentials in the pip argument, so
+          # the token stays out of the resolved URL pip echoes on failure.
+          git config --global \
+            url."https://x-access-token:${TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+          poetry run pip install \
+            "ibx-nios-sdk @ git+https://github.com/Infoblox-PS/ibx-nios-sdk@v0.2.0"
+      - name: Run tests
+        run: poetry run pytest -v --tb=short
+
+  ruff:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Ruff
+        run: pip install ruff
+      # `ruff check` is clean across src/, tests/ and scripts/, so it now
+      # blocks - a new lint error should fail the build rather than scroll by.
+      - name: Ruff check
+        run: ruff check src/ tests/ scripts/ .github/scripts/
+      # The tree was reformatted wholesale, so this blocks too. It drops the
+      # old aligned-assignment style; `ruff format` is now the single arbiter
+      # rather than a per-file judgement call.
+      - name: Ruff format check
+        run: ruff format --check src/ tests/ scripts/ .github/scripts/
+
+  markdownlint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install lint group
+        run: poetry install --only lint --no-interaction --no-ansi
+      # -r is load-bearing: pymarkdown's `scan` does NOT recurse into
+      # directories, so without it this job read only docs/index.md and
+      # skipped every subdirectory - passing on a near-empty scan.
+      - name: Scan markdown
+        run: poetry run pymarkdown --config pyproject.toml scan -r README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md docs/
+
+  docs:
+    name: Docs build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pipx install poetry
+      # The `docs` group holds zensical, and the SDK is not needed to render
+      # the site - so this installs that group alone and never touches the
+      # private repo, which keeps the job independent of the SDK_PAT secret.
+      - name: Install docs dependencies
+        run: poetry install --only docs --no-interaction --no-ansi
+      # Build the site so a broken zensical.toml fails here, not on publish.
+      # (`--strict` exists but is documented as "currently unsupported", so
+      # it is deliberately not used.)
+      - name: Build docs
+        run: poetry run zensical build
+      # A successful build is not enough on its own. Zensical reads `[project]`
+      # and silently DISCARDS every other top-level table, so a mis-nested
+      # section is not an error - it is a setting that quietly stops applying,
+      # and the build still passes. That is exactly how the theme and
+      # markdown_extensions config sat dead in this repo. These assertions pin
+      # the settings that would otherwise fail invisibly.
+      - name: Verify config actually applied
+        run: |
+          set -euo pipefail
+          fail() { echo "::error title=Docs config not applied::$1"; exit 1; }
+          grep -q 'data-md-color-primary="custom"' site/index.html \
+            || fail "custom palette missing - is [project.theme.palette] nested correctly?"
+          grep -q 'md-tabs__item' site/index.html \
+            || fail "navigation tabs missing - is [project.theme].features nested correctly?"
+          grep -q 'assets/stylesheets/theme.css' site/index.html \
+            || fail "extra_css not linked - is [project].extra_css nested correctly?"
+          test -s site/search.json \
+            || fail "search index missing or empty - is [project.plugins.search] nested correctly?"
+          echo "docs config verified: palette, tabs, extra_css and search index all present"
