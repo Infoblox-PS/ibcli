@@ -55,7 +55,7 @@ jobs:
           pipx install twine
           twine check dist/*
           python3 .github/scripts/check_no_direct_urls.py dist
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
