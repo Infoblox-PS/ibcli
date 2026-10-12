@@ -2,12 +2,10 @@
 
 **An async Python CLI for Infoblox NIOS - tab-completion, batch mode, a live REPL, and a WAPI-native command surface.**
 
-[![Tests](https://github.com/Infoblox-PS/ibcli/actions/workflows/ci.yml/badge.svg)](https://github.com/Infoblox-PS/ibcli/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/Infoblox-PS/ibcli)](https://github.com/Infoblox-PS/ibcli/releases)
-[![Docs](https://img.shields.io/badge/docs-zensical-green.svg)](https://infoblox-ps.github.io/ibcli/) [![Tests
-passing](https://img.shields.io/badge/tests-3%2C284%20passing-brightgreen.svg)](https://github.com/Infoblox-PS/ibcli/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-zensical-green.svg)](https://infoblox-ps.github.io/ibcli/) ![Tests passing](https://img.shields.io/badge/tests-3%2C284%20passing-brightgreen.svg)
 [![Commands](https://img.shields.io/badge/commands-1063-blue.svg)](docs/commands/index.md)
 
 ---
