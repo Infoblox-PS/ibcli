@@ -27,7 +27,7 @@ from ibcli.debug import configure_logging
 # prints the full notice.
 _COPYRIGHT = "Copyright (C) 2026 Infoblox Inc."
 
-_LICENSE_NOTICE = f"""ibcli {__version__}
+_LICENSE_NOTICE = f"""ibcli {__version__} - a Python port of the Infoblox CLI written by Geoff Horne
 {_COPYRIGHT}
 
 This program is free software: you can redistribute it and/or modify it

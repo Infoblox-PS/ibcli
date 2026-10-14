@@ -12,7 +12,7 @@
 
 ## What it is
 
-`ibcli` is a ground-up Python rewrite of the original Perl `ibcli`, built as a thin async CLI over the
+`ibcli` is a ground-up Python rewrite of the original Perl `ibcli` by Geoff Horne, built as a thin async CLI over the
 Infoblox-published [`ibx-nios-sdk`](https://github.com/Infoblox-PS/ibx-nios-sdk). It covers the full day-to-day
 operational surface of a NIOS grid:
 
@@ -418,8 +418,8 @@ Bug reports and feature requests: [issue tracker](https://github.com/Infoblox-PS
 - [`ibx-nios-sdk`](https://github.com/Infoblox-PS/ibx-nios-sdk) - the Infoblox-published async Python SDK that ibcli
   sits on top of.
 - [Infoblox NIOS WAPI documentation](https://docs.infoblox.com/) - object schemas and field semantics.
-- Perl `ibcli` - the original tool this project ports. The command vocabulary and abbreviation UX are inherited from it;
-  the implementation is entirely new.
+- Perl `ibcli` by Geoff Horne - the original tool this project ports. The command vocabulary and abbreviation UX are
+  inherited from it; the implementation is entirely new. See [Credits](docs/about/credits.md).
 
 ---
 

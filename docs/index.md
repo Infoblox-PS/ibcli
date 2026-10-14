@@ -11,7 +11,7 @@ hide:
 ## An async Python CLI for Infoblox NIOS
 
 Tab-completion at every position, a live REPL, batch mode, and **1,063 commands** over the WAPI.
-A ground-up rewrite of the original Perl `ibcli`, with no Perl runtime and no unmaintained SDK.
+A ground-up rewrite of the original Perl `ibcli` by Geoff Horne, with no Perl runtime and no unmaintained SDK.
 
 [Get started](getting-started/index.md){ .md-button .md-button--primary }
 [Browse the commands](commands/index.md){ .md-button }
